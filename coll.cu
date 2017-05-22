@@ -213,7 +213,6 @@ int main(void)
         }
 
         memset(genRAM, 0x00, sizeGen);
-        cudaMemcpy(genPtr, genRAM, sizeGen, cudaMemcpyHostToDevice);
         perSec += SIMULTANEOUS;
     }
 
