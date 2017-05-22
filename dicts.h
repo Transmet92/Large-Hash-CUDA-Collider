@@ -1811,6 +1811,7 @@ const unsigned int unknowns[] = {
 /*
 	START WORDS
 	REPEAT WORDS TO INCREASE THE PROBABILITY OF WORD
+	LOWERCASE PLEASE
 */
 
 const char* startWords[] = {
@@ -1842,6 +1843,7 @@ const char* startWords[] = {
 
 /*
 	COMPLEMENTS WORDS
+	LOWERCASE PLEASE
 */
 
 const char* words[] = {
