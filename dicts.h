@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+  UNKNOWNS JOAAT HASH TO COLLIDER
+  DICTIONNARY OF START WORDS AND COMPLEMENT WORDS
+*/
+
 const unsigned int unknowns[] = {
 658911742,
 48200436,
@@ -1802,6 +1807,12 @@ const unsigned int unknowns[] = {
 1546980728
 };
 
+
+/*
+	START WORDS
+	REPEAT WORDS TO INCREASE THE PROBABILITY OF WORD
+*/
+
 const char* startWords[] = {
 "get",
 "get",
@@ -1827,6 +1838,11 @@ const char* startWords[] = {
 "hide",
 "override",
 };
+
+
+/*
+	COMPLEMENTS WORDS
+*/
 
 const char* words[] = {
 "jetpack", // JESUS ! PLEASE :'(
