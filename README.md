@@ -32,3 +32,6 @@ Example output :</br>
 0x39A3CC6F : DOES_ACTIVE_AS_DATA_BEEN_LINE</br>
 0xD43BB56D : SET_MUSIC_OUT_SKIP_3D_NEW_LEAVE</br>
 0x3FE33BD6 : ARE_FIND_CURSOR_REPLAY</br>
+
+
+You can also edit the macros in coll.cu to custom the generator natives.
