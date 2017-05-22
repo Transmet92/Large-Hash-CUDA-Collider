@@ -84,8 +84,6 @@ __global__ void colliderKernel(const char* dictStart, const char* dictArg,
 
 int main(void)
 {
-    // cudaError_t err = cudaSuccess;
-    
     int startWordsSize = sizeof(startWords) / sizeof(startWords[0]);
     float dictStrWordGPU = (float)startWordsSize - 1.0f;
     char* dictTableStart = NULL;
