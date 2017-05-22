@@ -212,7 +212,6 @@ int main(void)
             }
         }
 
-        memset(genRAM, 0x00, sizeGen);
         perSec += SIMULTANEOUS;
     }
 
