@@ -16,7 +16,7 @@ http://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/#axzz4hoIl0y7H
 
 When the program is launched, the file "NativesGPU.txt" is created in your desktop, the collisions is append to this file.
 
-Bench on GTX 760 : ~11.5 Millions Hashes per second</br>
+Bench on GTX 760 : ~14.8 Millions Hashes per second</br>
 
 You can customise the dictionnaries and update the array of unknowns hashs.
 
