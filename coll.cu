@@ -18,21 +18,25 @@
 #define MIN_WORD_NUM 2 // MINIMUM OF WORDS TO GEN A NATIVE
 #define MAX_WORD_NUM 8 // MAXIMUM OF WORDS TO GEN A NATIVE ( IF ERROR CHANGE THE LENGTH MACRO )
 
-#define SIMULTANEOUS 30000 // SIMULTANEOUS NATIVES COUNT GENERATE PER CYCLE KERNEL
+#define SIMULTANEOUS 100000 // SIMULTANEOUS NATIVES COUNT GENERATE PER CYCLE KERNEL
 #define MAX_GENERATED 1000000 // MAX OUTPUT COLLISIONS
 
-__global__ void colliderKernel(const char* dictStart, const char* dictArg,
+__global__ void initCURAND(curandState* cus, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements)
+        curand_init(clock64(), i, 0, &(cus[i]));
+}
+
+__global__ void colliderKernel(curandState* cus, const char* dictStart, const char* dictArg,
                             const unsigned int* nativesUnk, unsigned short UnkNmb,
-                            char* genNat, int numElements, float dictWordLength,
-                            float dictStartWordLength)
+                            char* genNat, int numElements, int dictWordLength,
+                            int dictStartWordLength)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements)
     {
-        curandState curandS;
-        curand_init(clock64(), i, 0, &curandS);
-
-        const char* startWord = dictStart + (((unsigned char)(curand_uniform(&curandS) * dictStartWordLength)) * MAX_LENGTH_WORD);
+        const char* startWord = dictStart + ((unsigned char)(curand(&(cus[i])) % dictStartWordLength) * MAX_LENGTH_WORD);
         unsigned char* relOut = (unsigned char*)(genNat + (i * LENGTH));
         unsigned char it1 = 0;
         while (startWord[it1] != 0x00)
@@ -42,11 +46,11 @@ __global__ void colliderKernel(const char* dictStart, const char* dictArg,
         }
         relOut[it1] = '_';
 
-        unsigned char randWords = (unsigned char)((curand_uniform(&curandS) * (MAX_WORD_NUM - MIN_WORD_NUM)) + MIN_WORD_NUM); // BOUND 2 - 8
+        unsigned char randWords = (unsigned char)(curand(&(cus[i])) % (MAX_WORD_NUM - MIN_WORD_NUM)) + MIN_WORD_NUM; // BOUND 2 - 8
         for (unsigned char it2 = 0; it2 < randWords; it2++)
         {
             it1++;
-            unsigned short randCurrent = (unsigned short)(curand_uniform(&curandS) * dictWordLength);
+            unsigned short randCurrent = (unsigned short)(curand(&(cus[i])) % dictWordLength);
             const char* current = dictArg + (randCurrent * MAX_LENGTH_WORD);
             unsigned char itRel = 0;
             while (current[itRel] != 0x00)
@@ -85,7 +89,6 @@ __global__ void colliderKernel(const char* dictStart, const char* dictArg,
 int main(void)
 {
     int startWordsSize = sizeof(startWords) / sizeof(startWords[0]);
-    float dictStrWordGPU = (float)startWordsSize - 1.0f;
     char* dictTableStart = NULL;
     int sizeDict = startWordsSize * MAX_LENGTH_WORD;
     cudaMalloc((void**)&dictTableStart, sizeDict);
@@ -100,7 +103,6 @@ int main(void)
 
 
     int wordSizeDict = sizeof(words) / sizeof(words[0]);
-    float dictWordGPU = (float)wordSizeDict - 1.0f;
     sizeDict = wordSizeDict * MAX_LENGTH_WORD;
     char* dictTable = NULL;
     cudaMalloc((void**)&dictTable, sizeDict);
@@ -129,7 +131,7 @@ int main(void)
     cudaMalloc((void**)&UnknownsNat, sizeNatUnk);
     cudaMemcpy((unsigned char*)UnknownsNat, (unsigned char*)unknowns, sizeNatUnk, cudaMemcpyHostToDevice);
 
-    int thrBloc = 64;
+    int thrBloc = 512;
     int blocGrid = (SIMULTANEOUS + thrBloc - 1) / thrBloc;
 
 
@@ -147,6 +149,12 @@ int main(void)
     char* sprOutputBuf = new char[512];
     char* antiDouble = new char[LENGTH * MAX_GENERATED];
 
+
+    curandState* cuRANDs;
+    cudaMalloc((void**)&cuRANDs, sizeof(curandState) * SIMULTANEOUS);
+    initCURAND<<<blocGrid, thrBloc>>>(cuRANDs, SIMULTANEOUS);
+    printf("Initialised CURAND\n");
+
     // STAT ABOUT
     int perSec = 0;
     int tickSec = GetTickCount();
@@ -161,9 +169,9 @@ int main(void)
         }
 
         // EXECUTE HASH KERNEL
-        colliderKernel<<<blocGrid, thrBloc>>>((const char*)dictTableStart, (const char*)dictTable,
+        colliderKernel<<<blocGrid, thrBloc>>>(cuRANDs, (const char*)dictTableStart, (const char*)dictTable,
                                                             (const unsigned int*)UnknownsNat, UnknownsCount,
-                                                                    genPtr, SIMULTANEOUS, dictWordGPU, dictStrWordGPU);
+                                                                    genPtr, SIMULTANEOUS, wordSizeDict, startWordsSize);
 
         cudaMemcpy(genRAM, genPtr, sizeGen, cudaMemcpyDeviceToHost);
 
@@ -218,6 +226,7 @@ int main(void)
     /*
         GARBAGE COLLECTING
     */
+    cudaFree(cuRANDs);
     cudaFree((char*)UnknownsNat);
     cudaFree(genPtr);
     cudaFree(dictTable);
