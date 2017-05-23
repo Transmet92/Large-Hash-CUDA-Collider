@@ -88,6 +88,11 @@ __global__ void colliderKernel(curandState* cus, const char* dictStart, const ch
 
 int main(void)
 {
+    cudaDeviceProp propsDev = {};
+    cudaGetDeviceProperties(&propsDev, 0);
+    cudaSetDevice(0);
+    printf("Selected GPU : %s\n\n", propsDev.name);
+
     int startWordsSize = sizeof(startWords) / sizeof(startWords[0]);
     char* dictTableStart = NULL;
     int sizeDict = startWordsSize * MAX_LENGTH_WORD;
