@@ -14,11 +14,11 @@
 #include "dicts.h"
 
 #define LENGTH 72 // MAX LENGTH OF GENERATE NATIVE
-#define MAX_LENGTH_WORD 16 // FOR ALLOC ( CHANGE IF A WORD IN DICT IS TALLER THAN 16 )
+#define MAX_LENGTH_WORD 16 // FOR ALLOC ( CHANGE IF A WORD IN DICT IS TALLER THAN 16 ), WILL BE A MULTIPLE OF 8
 #define MIN_WORD_NUM 2 // MINIMUM OF WORDS TO GEN A NATIVE
-#define MAX_WORD_NUM 8 // MAXIMUM OF WORDS TO GEN A NATIVE ( IF ERROR CHANGE THE LENGTH MACRO )
+#define MAX_WORD_NUM 6 // MAXIMUM OF WORDS TO GEN A NATIVE ( IF ERROR CHANGE THE LENGTH MACRO )
 
-#define SIMULTANEOUS 100000 // SIMULTANEOUS NATIVES COUNT GENERATE PER CYCLE KERNEL
+#define SIMULTANEOUS 200000 // SIMULTANEOUS NATIVES COUNT GENERATE PER CYCLE KERNEL
 #define MAX_GENERATED 1000000 // MAX OUTPUT COLLISIONS
 
 __global__ void initCURAND(curandState* cus, int numElements)
@@ -36,12 +36,20 @@ __global__ void colliderKernel(curandState* cus, const char* dictStart, const ch
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements)
     {
-        const char* startWord = dictStart + ((unsigned char)(curand(&(cus[i])) % dictStartWordLength) * MAX_LENGTH_WORD);
-        unsigned char* relOut = (unsigned char*)(genNat + (i * LENGTH));
+        char relOut[LENGTH];
+        const unsigned char lengthWord64 = MAX_LENGTH_WORD / 8;
+        uint64_t wordBuf[lengthWord64];
+
+        const uint64_t* startWord =
+            (const uint64_t*)(dictStart + ((unsigned char)(curand(&(cus[i])) % dictStartWordLength) * MAX_LENGTH_WORD));
+        for (unsigned char it = 0; it < lengthWord64; it++)
+            wordBuf[it] = startWord[it];
+        const char* wordBuf8_1 = (const char*)wordBuf;
+        
         unsigned char it1 = 0;
-        while (startWord[it1] != 0x00)
+        while (wordBuf8_1[it1] != 0x00)
         {
-            relOut[it1] = startWord[it1];
+            relOut[it1] = wordBuf8_1[it1];
             it1++;
         }
         relOut[it1] = '_';
@@ -51,11 +59,15 @@ __global__ void colliderKernel(curandState* cus, const char* dictStart, const ch
         {
             it1++;
             unsigned short randCurrent = (unsigned short)(curand(&(cus[i])) % dictWordLength);
-            const char* current = dictArg + (randCurrent * MAX_LENGTH_WORD);
+            const uint64_t* current = (const uint64_t*)(dictArg + (randCurrent * MAX_LENGTH_WORD));
+            for (unsigned char it = 0; it < lengthWord64; it++)
+                wordBuf[it] = current[it];
+            const char* wordBuf8_2 = (const char*)wordBuf;
+
             unsigned char itRel = 0;
-            while (current[itRel] != 0x00)
+            while (wordBuf8_2[itRel] != 0x00)
             {
-                relOut[it1] = current[itRel];
+                relOut[it1] = wordBuf8_2[itRel];
                 it1++;
                 itRel++;
             }
@@ -76,13 +88,23 @@ __global__ void colliderKernel(curandState* cus, const char* dictStart, const ch
 
         bool bypassErase = true;
         for (unsigned short it3 = 0; it3 < UnkNmb; it3++)
+        {
             if (hash == nativesUnk[it3]) {
                 bypassErase = false;
                 break;
             }
+        }
         
         if (bypassErase)
-          *relOut = 0x00;
+            *(genNat + (i * LENGTH)) = 0x00;
+        else
+        {
+            int* relOutGlb = (int*)(genNat + (i * LENGTH));
+            int* relOutFour = (int*)relOut;
+            for (unsigned char itR = 0; itR < 18; itR++)
+                if (relOutFour[itR] != 0x00000000)
+                    relOutGlb[itR] = relOutFour[itR];
+        }
     }
 }
 
@@ -136,7 +158,7 @@ int main(void)
     cudaMalloc((void**)&UnknownsNat, sizeNatUnk);
     cudaMemcpy((unsigned char*)UnknownsNat, (unsigned char*)unknowns, sizeNatUnk, cudaMemcpyHostToDevice);
 
-    int thrBloc = 512;
+    int thrBloc = 128;
     int blocGrid = (SIMULTANEOUS + thrBloc - 1) / thrBloc;
 
 
@@ -158,7 +180,7 @@ int main(void)
     curandState* cuRANDs;
     cudaMalloc((void**)&cuRANDs, sizeof(curandState) * SIMULTANEOUS);
     initCURAND<<<blocGrid, thrBloc>>>(cuRANDs, SIMULTANEOUS);
-    printf("Initialised CURAND\n");
+    printf("Initialised CURAND\n\n");
 
     // STAT ABOUT
     int perSec = 0;
