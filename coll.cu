@@ -181,7 +181,7 @@ int main(void)
             if (*Output != 0x00)
             {
                 bool bypassIA = true;
-                for (int iA = 0; iA < 100000; iA++)
+                for (int iA = 0; iA < MAX_GENERATED; iA++)
                 {
                     char* CurIA = antiDouble + (iA * LENGTH);
                     if (*CurIA == 0x00)
