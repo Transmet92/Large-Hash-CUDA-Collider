@@ -191,7 +191,10 @@ int main(void)
                     }
 
                     if (!strcmp(Output, CurIA))
+                    {
                         bypassIA = false;
+                        break;
+                    }
                 }
 
                 if (bypassIA)
